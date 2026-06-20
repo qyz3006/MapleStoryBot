@@ -1,0 +1,43 @@
+name: Build Python EXE via PyInstaller
+
+on:
+  workflow_dispatch: # 允许手动点击按钮触发打包
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    - name: Setup Python 3.10
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10' # 使用最稳定的 3.10 版本
+
+    - name: Install Dependencies
+      run: |
+        python -m pip install --upgrade pip setuptools wheel
+        pip install -r requirements.txt
+        pip install pyinstaller
+
+    - name: Build EXE with PyInstaller
+      run: |
+        # --onedir 代表打包输出为一个文件夹（对TensorFlow这类大型AI库最稳定）
+        # --collect-all 用于强制把 tensorflow 和 opencv 的底层二进制依赖全部抓进来，防止运行时报错
+        pyinstaller --onedir --name=MapleStoryBot --collect-all tensorflow --collect-all cv2 --collect-all git main.py
+
+    - name: Copy Assets and Resources
+      shell: pwsh
+      run: |
+        # 把项目自带的图片、配置和脚本文件夹复制到打包后的 exe 目录中
+        if (Test-Path "assets") { Copy-Item -Path "assets" -Destination "dist/MapleStoryBot/assets" -Recurse -Force }
+        if (Test-Path "resources") { Copy-Item -Path "resources" -Destination "dist/MapleStoryBot/resources" -Recurse -Force }
+        if (Test-Path "images") { Copy-Item -Path "images" -Destination "dist/MapleStoryBot/images" -Recurse -Force }
+
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: MapleStoryBot-Windows-Pack
+        path: dist/MapleStoryBot/
